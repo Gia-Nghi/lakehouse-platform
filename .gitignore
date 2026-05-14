@@ -1,10 +1,54 @@
-.env
-__pycache__/
-*.pyc
-data/
-logs/
-.venv/
-node_modules/
-*.log
+# --- System Files ---
 .DS_Store
-EOF
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# --- Python & Virtual Env ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env
+.pytest_cache/
+.mypy_cache/
+
+# --- Data & Notebooks (Cực kỳ quan trọng cho Lakehouse) ---
+data/
+*.csv
+*.parquet
+*.json
+*.avro
+*.orc
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# --- Infrastructure & Docker ---
+# Chặn các dữ liệu phát sinh khi chạy container
+infra/postgres_data/
+infra/minio_data/
+infra/dremio_data/
+*.log
+
+# --- Airflow Specific ---
+logs/
+airflow.cfg
+airflow.db
+webserver_config.py
+unittests.cfg
+
+# --- ML & Models (Pytorch) ---
+*.pt
+*.pth
+*.onnx
+ml_models/
+.comet_ml/
+
+# --- Spark & Temporary files ---
+.spark-staged/
+metastore_db/
+derby.log
+event_logs/

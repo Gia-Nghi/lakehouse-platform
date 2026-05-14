@@ -1,0 +1,223 @@
+networks:
+  data-lakehouse-net:
+    driver: bridge
+
+services:
+  # --- DATABASE ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: lakehouse-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB_NESSIE=${POSTGRES_DB_NESSIE}
+      - POSTGRES_DB_AIRFLOW=${POSTGRES_DB_AIRFLOW}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    ports:
+      - "5433:5432"
+    networks:
+      - data-lakehouse-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- STORAGE ---
+  minio:
+    image: minio/minio
+    container_name: lakehouse-minio
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9033:9000"
+      - "9031:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - data-lakehouse-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-setup:
+    image: minio/mc
+    container_name: lakehouse-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - data-lakehouse-net
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb myminio/bronze || true;
+      mc mb myminio/warehouse || true;
+      exit 0;
+      "
+
+  # --- CATALOG (NESSIE) ---
+  nessie:
+    image: projectnessie/nessie:latest
+    container_name: lakehouse-nessie
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB_NESSIE}
+      - QUARKUS_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - QUARKUS_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "19123:19120"
+    networks:
+      - data-lakehouse-net
+
+  # --- AIRFLOW ---
+  airflow-init:
+    image: ${AIRFLOW_IMAGE_NAME}
+    container_name: lakehouse-airflow-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    user: "0:0"
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AIRFLOW}
+    networks:
+      - data-lakehouse-net
+    command: >
+      bash -c "airflow db init &&
+      airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password ${POSTGRES_PASSWORD}"
+
+  airflow-webserver:
+    image: ${AIRFLOW_IMAGE_NAME}
+    container_name: lakehouse-airflow-web
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    user: "0:0"
+    environment: &airflow_env
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AIRFLOW}
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../src:/opt/airflow/dags/src
+      - ../config:/opt/airflow/config
+    ports:
+      - "8033:8080"
+    networks:
+      - data-lakehouse-net
+    command: webserver
+
+  airflow-scheduler:
+    image: ${AIRFLOW_IMAGE_NAME}
+    container_name: lakehouse-airflow-sched
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    user: "0:0"
+    environment: *airflow_env
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../src:/opt/airflow/dags/src
+      - ../config:/opt/airflow/config
+    networks:
+      - data-lakehouse-net
+    command: scheduler
+
+  # --- SPARK (Sử dụng file cấu hình vật lý) ---
+  spark-master:
+    build:
+      context: ..
+      dockerfile: infra/docker/spark/Dockerfile
+    container_name: lakehouse-spark-master
+    user: root
+    environment:
+      - SPARK_MODE=master
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      # Mount file cấu hình vào container
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    ports:
+      - "7037:7077"
+      - "8333:8080"
+    networks:
+      - data-lakehouse-net
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+
+  spark-worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/spark/Dockerfile
+    container_name: lakehouse-spark-worker
+    user: root
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      # Mount file cấu hình tương tự Master
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    networks:
+      - data-lakehouse-net
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+
+  # --- KAFKA & DREMIO ---
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: lakehouse-kafka
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:29092,CONTROLLER://:9093,OUTSIDE://:9032
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,OUTSIDE://localhost:9032
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,OUTSIDE:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+    ports:
+      - "9032:9032"
+    networks:
+      - data-lakehouse-net
+
+  kafka-ui:
+    image: redpandadata/console:latest
+    container_name: lakehouse-kafka-ui
+    depends_on:
+      - kafka
+    networks:
+      - data-lakehouse-net
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+    ports:
+      - "8032:8080"
+
+  dremio:
+    image: dremio/dremio-oss
+    container_name: lakehouse-dremio
+    depends_on:
+      minio:
+        condition: service_healthy
+    ports:
+      - "9037:9047"
+      - "31310:31010"
+    volumes:
+      - dremio_data:/opt/dremio/data
+    networks:
+      - data-lakehouse-net
+
+volumes:
+  postgres_data:
+  minio_data:
+  dremio_data:
