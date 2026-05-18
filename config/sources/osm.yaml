@@ -1,0 +1,13 @@
+places:
+  - Ho Chi Minh City, Vietnam
+
+tags:
+  amenity:
+    - school
+    - hospital
+    - cafe
+    - restaurant
+  public_transport:
+    - station
+  shop:
+    - supermarket

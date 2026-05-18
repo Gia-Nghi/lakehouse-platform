@@ -27,3 +27,15 @@ logs-airflow:
 # Build lại Spark nếu bạn thay đổi Dockerfile/thêm JARs mới
 build-spark:
 	docker compose -f infra/docker-compose.yml build spark-master spark-worker
+
+# Restart lại Airflow nếu bạn thay đổi code DAGs hoặc cài thêm thư viện mới
+restart-airflow:
+	docker compose --env-file .env -f infra/docker-compose.yml restart airflow-webserver airflow-scheduler
+
+# Khởi động riêng cụm Airflow
+up-airflow:
+	docker compose --env-file .env -f infra/docker-compose.yml up -d airflow-webserver airflow-scheduler
+
+# Dừng và xóa các container thuộc cụm Airflow
+down-airflow:
+	docker compose --env-file .env -f infra/docker-compose.yml rm -fs airflow-webserver airflow-scheduler airflow-init

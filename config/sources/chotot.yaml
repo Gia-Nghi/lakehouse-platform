@@ -1,0 +1,11 @@
+base_url: https://gateway.chotot.com/v1/public/ad-listing
+params:
+  cg: 1020
+  limit: 20
+  o: 0
+  st: s,k
+
+  streaming:
+  kafka_bootstrap_servers: kafka:29092
+  topic: raw.chotot.listings
+  poll_interval_seconds: 60

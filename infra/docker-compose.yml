@@ -58,6 +58,7 @@ services:
       /bin/sh -c "
       sleep 5;
       mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb myminio/raw || true;
       mc mb myminio/bronze || true;
       mc mb myminio/warehouse || true;
       exit 0;
@@ -65,7 +66,7 @@ services:
 
   # --- CATALOG (NESSIE) ---
   nessie:
-    image: projectnessie/nessie:latest
+    image: projectnessie/nessie:0.76.6-java
     container_name: lakehouse-nessie
     depends_on:
       postgres:
@@ -81,7 +82,9 @@ services:
 
   # --- AIRFLOW ---
   airflow-init:
-    image: ${AIRFLOW_IMAGE_NAME}
+    build:
+      context: ..
+      dockerfile: infra/docker/airflow/Dockerfile
     container_name: lakehouse-airflow-init
     depends_on:
       postgres:
@@ -96,7 +99,9 @@ services:
       airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password ${POSTGRES_PASSWORD}"
 
   airflow-webserver:
-    image: ${AIRFLOW_IMAGE_NAME}
+    build:
+      context: ..
+      dockerfile: infra/docker/airflow/Dockerfile
     container_name: lakehouse-airflow-web
     depends_on:
       airflow-init:
@@ -106,10 +111,14 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AIRFLOW}
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__LOGGING__BASE_LOG_FOLDER=${AIRFLOW__LOGGING__BASE_LOG_FOLDER}
+      - PYTHONPATH=/opt/airflow
     volumes:
       - ../dags:/opt/airflow/dags
-      - ../src:/opt/airflow/dags/src
+      - ../src:/opt/airflow/src
       - ../config:/opt/airflow/config
+      - ../logs/airflow:/opt/airflow/logs
+      - ../data:/opt/airflow/data
     ports:
       - "8033:8080"
     networks:
@@ -117,7 +126,9 @@ services:
     command: webserver
 
   airflow-scheduler:
-    image: ${AIRFLOW_IMAGE_NAME}
+    build:
+      context: ..
+      dockerfile: infra/docker/airflow/Dockerfile
     container_name: lakehouse-airflow-sched
     depends_on:
       airflow-init:
@@ -126,8 +137,10 @@ services:
     environment: *airflow_env
     volumes:
       - ../dags:/opt/airflow/dags
-      - ../src:/opt/airflow/dags/src
+      - ../src:/opt/airflow/src
       - ../config:/opt/airflow/config
+      - ../logs/airflow:/opt/airflow/logs
+      - ../data:/opt/airflow/data
     networks:
       - data-lakehouse-net
     command: scheduler
@@ -192,7 +205,7 @@ services:
       - data-lakehouse-net
 
   kafka-ui:
-    image: redpandadata/console:latest
+    image: redpandadata/console:v3.7.2
     container_name: lakehouse-kafka-ui
     depends_on:
       - kafka

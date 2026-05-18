@@ -1,0 +1,56 @@
+# --- Git & IDE ---
+.git
+.gitignore
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Dữ liệu nặng (Cực kỳ quan trọng để tránh treo Docker) ---
+# Loại bỏ toàn bộ thư mục data và các định dạng file dữ liệu
+data/
+temp/
+*.csv
+*.parquet
+*.json
+*.avro
+*.orc
+infra/postgres_data/
+infra/minio_data/
+infra/dremio_data/
+
+# --- Python & Build rác ---
+**/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+*.log
+
+# --- Notebooks & Docs (Không cần khi chạy Production/System) ---
+docs/
+notebooks/
+.ipynb_checkpoints/
+*.md
+
+# --- Airflow & Spark Specific ---
+logs/
+airflow.cfg
+airflow.db
+webserver_config.py
+unittests.cfg
+.spark-staged/
+metastore_db/
+derby.log
+event_logs/
+
+# --- ML Models ---
+*.pt
+*.pth
+*.onnx
+ml_models/
+.comet_ml/
