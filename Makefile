@@ -39,3 +39,29 @@ up-airflow:
 # Dừng và xóa các container thuộc cụm Airflow
 down-airflow:
 	docker compose --env-file .env -f infra/docker-compose.yml rm -fs airflow-webserver airflow-scheduler airflow-init
+
+# Xem log của Airflow Webserver để debug
+logs-airflow-web:
+	docker compose --env-file .env -f infra/docker-compose.yml logs -f airflow-webserver
+
+# Xem log của Airflow Scheduler để debug
+logs-airflow-scheduler:
+	docker compose --env-file .env -f infra/docker-compose.yml logs -f airflow-scheduler
+
+
+# Chạy và dừng chotot_crawler và chotot_raw_to_bronze 
+up-chotot:
+	docker compose --env-file .env -f infra/docker-compose.yml up -d chotot-crawler chotot-raw-to-bronze
+down-chotot:
+	docker compose --env-file .env -f infra/docker-compose.yml rm -fs chotot-crawler chotot-raw-to-bronze
+restart-chotot:
+	docker compose --env-file .env -f infra/docker-compose.yml restart chotot-crawler chotot-raw-to-bronze
+
+# Xem log của chotot-crawler để debug
+logs-chotot-crawler:
+	docker compose --env-file .env -f infra/docker-compose.yml logs -f chotot-crawler
+
+# Xem log của chotot-raw-to-bronze để debug
+logs-chotot-raw-to-bronze:
+	docker compose --env-file .env -f infra/docker-compose.yml logs -f chotot-raw-to-bronze
+

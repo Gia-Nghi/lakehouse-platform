@@ -1,11 +1,38 @@
-base_url: https://gateway.chotot.com/v1/public/ad-listing
-params:
-  cg: 1020
-  limit: 20
-  o: 0
-  st: s,k
+# File cấu hình cho source chotot
+# Tách riêng phần cấu hình API, request, Kafka, storage và runtime để dễ quản lý và bảo trì
 
-  streaming:
-  kafka_bootstrap_servers: kafka:29092
-  topic: raw.chotot.listings
-  poll_interval_seconds: 60
+# Metadata về source
+source: chotot
+category: market_listings
+
+api:
+  list_url: "https://gateway.chotot.com/v1/public/ad-listing"
+  detail_url: "https://gateway.chotot.com/v1/public/ad-listing/{list_id}"
+  params:
+    cg: 1000            # category id cho bất động sản
+    region_v2: 13000    # region id cho Hồ Chí Minh
+    st: "s,k"           # st: s (bán), k (cho thuê)
+    source: "listing"
+    limit: 50
+
+request:
+  timeout: 10
+  retries: 3
+  sleep_base: 1.0
+  backoff_factor: 2
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+
+kafka:
+  bootstrap_servers: "kafka:29092"
+  topic: "chotot_raw"
+
+storage:
+  bronze_bucket: "lakehouse"
+  bronze_prefix: "bronze/market_listings/chotot/"
+
+runtime:
+  mode: "streaming"
+  poll_interval_seconds: 300
+  max_records_per_poll: 50
+  deduplicate_key: "list_id"
+  stop_after_polls: null

@@ -1,17 +1,43 @@
+import json
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List
 
-from common.io.minio_client import create_minio_client, ensure_bucket, upload_json_bytes
-from common.utils.logger import get_logger
-from ingestion.geo_context.osm.client import fetch_overpass
-from ingestion.geo_context.osm.config import (
+from src.common.minio import create_minio_client
+from src.ingestion.geo_context.osm.client import fetch_overpass
+from src.ingestion.geo_context.osm.config import (
+    BRONZE_PREFIX,
     GRID_BBOXES,
     MINIO_BUCKET,
     OVERPASS_SLEEP_BETWEEN_BBOX_SECONDS,
+    TARGET_REGION,
 )
 
-logger = get_logger(__name__)
+
+def _ensure_bucket(client, bucket_name: str) -> None:
+    if not client.bucket_exists(bucket_name):
+        client.make_bucket(bucket_name)
+
+
+def _to_jsonl_bytes(records: List[Dict[str, Any]]) -> bytes:
+    lines = []
+
+    for record in records:
+        lines.append(json.dumps(record, ensure_ascii=False))
+
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _upload_bytes(client, bucket_name: str, object_name: str, data: bytes, content_type: str) -> None:
+    import io
+
+    client.put_object(
+        bucket_name=bucket_name,
+        object_name=object_name,
+        data=io.BytesIO(data),
+        length=len(data),
+        content_type=content_type,
+    )
 
 
 def collect_by_grid(
@@ -22,67 +48,86 @@ def collect_by_grid(
 
     for bbox in GRID_BBOXES:
         south, west, north, east = bbox
-        logger.info("Fetching %s bbox=%s", entity_name, bbox)
+        print(f"[OSM] Fetching entity={entity_name}, bbox={bbox}")
 
         try:
             query = query_builder(south, west, north, east)
             data = fetch_overpass(query)
             elements = data.get("elements", [])
+
             all_elements.extend(elements)
 
-            logger.info(
-                "Fetched %s elements for %s bbox=%s",
-                len(elements),
-                entity_name,
-                bbox,
-            )
+            print(f"[OSM] Fetched {len(elements)} elements for {entity_name}, bbox={bbox}")
 
         except Exception as exc:
-            logger.warning(
-                "Skip bbox=%s for entity=%s because Overpass failed: %s",
-                bbox,
-                entity_name,
-                exc,
-            )
+            print(f"[OSM] Skip bbox={bbox}, entity={entity_name}, error={exc}")
 
         time.sleep(OVERPASS_SLEEP_BETWEEN_BBOX_SECONDS)
 
     return all_elements
 
 
-def upload_dataset(
-    folder: str,
+def upload_layer_jsonl(
     entity_type: str,
     parsed_payload: List[Dict[str, Any]],
-    raw_elements: List[Dict[str, Any]],
-) -> None:
+    batch_id: int = 0,
+) -> str:
     client = create_minio_client()
-    ensure_bucket(client, MINIO_BUCKET)
+    _ensure_bucket(client, MINIO_BUCKET)
 
     now = datetime.now(timezone.utc)
-    dt = now.strftime("%Y-%m-%d")
-    ts = now.strftime("%Y%m%dT%H%M%SZ")
+    date_str = now.strftime("%Y-%m-%d")
+    ymd = now.strftime("%Y%m%d")
 
-    raw_object = f"bronze/geo_context/osm/{folder}/dt={dt}/osm_{folder}_hcmc_raw_{ts}.json"
-    parsed_object = f"bronze/geo_context/osm/{folder}/dt={dt}/osm_{folder}_hcmc_parsed_{ts}.json"
-
-    upload_json_bytes(client, MINIO_BUCKET, raw_object, {"elements": raw_elements})
-    upload_json_bytes(
-        client,
-        MINIO_BUCKET,
-        parsed_object,
-        {
-            "source": "openstreetmap",
-            "domain": "geo_context",
-            "entity_type": entity_type,
-            "target_region": "Ho Chi Minh City",
-            "grid_bboxes": GRID_BBOXES,
-            "collected_at_ms": int(now.timestamp() * 1000),
-            "record_count": len(parsed_payload),
-            "payload": parsed_payload,
-        },
+    object_name = (
+        f"{BRONZE_PREFIX}/"
+        f"date={date_str}/"
+        f"{entity_type}_{ymd}_{batch_id:04d}.jsonl"
     )
 
-    logger.info("Uploaded raw %s to s3://%s/%s", entity_type, MINIO_BUCKET, raw_object)
-    logger.info("Uploaded parsed %s to s3://%s/%s", entity_type, MINIO_BUCKET, parsed_object)
-    logger.info("Total %s parsed: %s", entity_type, len(parsed_payload))
+    data = _to_jsonl_bytes(parsed_payload)
+
+    _upload_bytes(
+        client=client,
+        bucket_name=MINIO_BUCKET,
+        object_name=object_name,
+        data=data,
+        content_type="application/x-ndjson",
+    )
+
+    print(f"[OSM] Uploaded {entity_type}: s3://{MINIO_BUCKET}/{object_name}")
+    return object_name
+
+
+def upload_metadata(summary: Dict[str, Any]) -> str:
+    client = create_minio_client()
+    _ensure_bucket(client, MINIO_BUCKET)
+
+    now = datetime.now(timezone.utc)
+    date_str = now.strftime("%Y-%m-%d")
+    ymd = now.strftime("%Y%m%d")
+
+    object_name = f"{BRONZE_PREFIX}/date={date_str}/metadata_{ymd}.json"
+
+    payload = {
+        "source": "openstreetmap",
+        "domain": "geo_context",
+        "target_region": TARGET_REGION,
+        "ingested_at": now.isoformat(),
+        "ingested_date": date_str,
+        "grid_bboxes": GRID_BBOXES,
+        "layers": summary,
+    }
+
+    data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+    _upload_bytes(
+        client=client,
+        bucket_name=MINIO_BUCKET,
+        object_name=object_name,
+        data=data,
+        content_type="application/json",
+    )
+
+    print(f"[OSM] Uploaded metadata: s3://{MINIO_BUCKET}/{object_name}")
+    return object_name

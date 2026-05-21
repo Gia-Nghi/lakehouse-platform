@@ -1,27 +1,30 @@
-from typing import Any, Dict, List
+import time
+from typing import Dict, Any
 
 
-def parse_chotot_response(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
-    ads = payload.get("ads") or payload.get("data") or []
+def build_raw_record(
+    ad: Dict[str, Any],
+    detail: Dict[str, Any],
+    source: str = "chotot",
+    category: str = "market_listings",
+) -> Dict[str, Any]:
+    return {
+        "source": source,
+        "category": category,
+        "entity": "real_estate_listing",
+        "list": ad,
+        "detail": detail,
+        "crawled_at": int(time.time() * 1000),
+        "ingestion_type": "streaming_kafka",
+    }
 
-    records = []
 
-    for item in ads:
-        records.append(
-            {
-                "ad_id": item.get("ad_id") or item.get("list_id"),
-                "subject": item.get("subject"),
-                "body": item.get("body"),
-                "price": item.get("price"),
-                "area": item.get("size") or item.get("area"),
-                "region": item.get("region_name"),
-                "area_name": item.get("area_name"),
-                "ward": item.get("ward_name"),
-                "category": item.get("category"),
-                "account_id": item.get("account_id"),
-                "date": item.get("date"),
-                "raw": item,
-            }
-        )
+def get_record_id(record: Dict[str, Any], deduplicate_key: str = "list_id"):
+    list_part = record.get("list", {})
+    detail_part = record.get("detail", {})
 
-    return records
+    return (
+        list_part.get(deduplicate_key)
+        or detail_part.get(deduplicate_key)
+        or detail_part.get("ad_id")
+    )

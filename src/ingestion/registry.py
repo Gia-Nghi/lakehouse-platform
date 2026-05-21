@@ -1,21 +1,21 @@
-from src.ingestion.geo_context.osm.runners.run_osm import OSMIngestionJob
-from src.ingestion.market_listings.chotot.run import ChototIngestionJob
+# from src.ingestion.geo_context.osm.runners.run_osm import OSMIngestionJob
+# from src.ingestion.market_listings.chotot.run import ChototIngestionJob
 from src.ingestion.user_interest.google_trends.run import GoogleTrendsIngestionJob
 
 
 SOURCES = {
-    "chotot": {
-        "class": ChototIngestionJob,
-        "config": "/opt/airflow/config/sources/chotot.yaml",
-    },
+    # "chotot": {
+    #     "class": ChototIngestionJob,
+    #     "config": "/opt/airflow/config/sources/chotot.yaml",
+    # },
     "google_trends": {
         "class": GoogleTrendsIngestionJob,
         "config": "/opt/airflow/config/sources/google_trends.yaml",
     },
-    "osm": {
-        "class": OSMIngestionJob,
-        "config": "/opt/airflow/config/sources/osm.yaml",
-    },
+    # "osm": {
+    #     "class": OSMIngestionJob,
+    #     "config": "/opt/airflow/config/sources/osm.yaml",
+    # },
 }
 
 

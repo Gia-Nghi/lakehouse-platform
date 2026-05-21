@@ -1,6 +1,15 @@
-keywords:
-  - chung cư
-  - nhà đất
-  - thuê phòng
+source: google_trends
+
 geo: VN
-timeframe: now 7-d
+target_region: "Vietnam"
+
+months_back: 12
+window_days: 30
+
+keyword_groups:
+  hcm_real_estate:
+    - "bất động sản"
+    - "mua nhà"
+    - "căn hộ"
+    - "chung cư"
+    - "đất nền"

@@ -1,24 +1,244 @@
+import io
+import json
+import logging
+import os
+
+import pendulum
+
+from src.common.minio import (
+    create_minio_client,
+    has_objects,
+    put_jsonl_object,
+)
 from src.ingestion.base import BaseIngestionJob
-from src.ingestion.user_interest.google_trends.collector import GoogleTrendsCollector
+from src.ingestion.user_interest.google_trends.collector import (
+    GoogleTrendsCollector,
+)
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+
+TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
+
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "lakehouse")
+BRONZE_PREFIX = "bronze/user_interest/google_trends"
 
 
 class GoogleTrendsIngestionJob(BaseIngestionJob):
     source_name = "google_trends"
 
-    def fetch(self):
-        collector = GoogleTrendsCollector(
-            geo=self.config.get("geo", "VN"),
-            timeframe=self.config.get("timeframe", "now 7-d"),
+    def __init__(self, config_path: str):
+        super().__init__(config_path)
+        self.minio_client = create_minio_client()
+
+    def get_load_type_and_timeframe(self):
+        has_data = has_objects(
+            client=self.minio_client,
+            bucket=MINIO_BUCKET,
+            prefix=BRONZE_PREFIX,
         )
 
-        return collector.collect(self.config["keywords"])
+        if has_data:
+            return "daily", self.config.get(
+                "daily_timeframe",
+                "today 1-m",
+            )
+
+        return "initial", self.config.get(
+            "initial_timeframe",
+            "today 12-m",
+        )
+
+    def fetch(self):
+        load_type, timeframe = (
+            self.get_load_type_and_timeframe()
+        )
+
+        logger.info(
+            "Google Trends load_type=%s timeframe=%s",
+            load_type,
+            timeframe,
+        )
+
+        collector = GoogleTrendsCollector(
+            geo=self.config.get("geo", "VN"),
+            timeframe=timeframe,
+            target_region=self.config.get(
+                "target_region",
+                "Vietnam",
+            ),
+            months_back=self.config.get(
+                "months_back",
+                12,
+            ),
+            window_days=self.config.get(
+                "window_days",
+                30,
+            ),
+            load_type=load_type,
+        )
+
+        all_records = []
+
+        keyword_groups = self.config.get(
+            "keyword_groups",
+            {},
+        )
+
+        if not keyword_groups:
+            logger.warning(
+                "No keyword_groups found in config."
+            )
+            return all_records
+
+        for keyword_group, keywords in (
+            keyword_groups.items()
+        ):
+            logger.info(
+                "Collecting keyword_group=%s keywords=%s",
+                keyword_group,
+                keywords,
+            )
+
+            records = collector.collect(
+                keyword_group=keyword_group,
+                keywords=keywords,
+            )
+
+            all_records.extend(records)
+
+        logger.info(
+            "Collected %s Google Trends records.",
+            len(all_records),
+        )
+
+        return all_records
 
     def parse(self, raw_data):
         return raw_data
 
+    def save(self, records):
+        if not records:
+            logger.warning(
+                "No Google Trends records to save."
+            )
+            return None
+
+        now = pendulum.now(TZ)
+
+        date_str = now.strftime("%Y-%m-%d")
+        file_date = now.strftime("%Y%m%d")
+
+        base_prefix = (
+            f"{BRONZE_PREFIX}/"
+            f"date={date_str}"
+        )
+
+        # =========================
+        # DATA FILE
+        # =========================
+        object_name = (
+            f"{base_prefix}/"
+            f"google_trends_{file_date}_0000.jsonl"
+        )
+
+        path = put_jsonl_object(
+            client=self.minio_client,
+            bucket=MINIO_BUCKET,
+            object_name=object_name,
+            records=records,
+        )
+
+        # =========================
+        # METADATA FILE
+        # =========================
+        metadata = {
+            "source": "google_trends",
+            "domain": "user_interest",
+            "entity_type": (
+                "search_interest_timeseries"
+            ),
+            "load_type": records[0].get(
+                "load_type",
+                "unknown",
+            ),
+            "target_region": self.config.get(
+                "target_region"
+            ),
+            "geo": self.config.get("geo"),
+            "initial_timeframe": self.config.get(
+                "initial_timeframe"
+            ),
+            "daily_timeframe": self.config.get(
+                "daily_timeframe"
+            ),
+            "months_back": self.config.get(
+                "months_back"
+            ),
+            "window_days": self.config.get(
+                "window_days"
+            ),
+            "keyword_groups": self.config.get(
+                "keyword_groups"
+            ),
+            "record_count": len(records),
+            "saved_at": (
+                now.to_iso8601_string()
+            ),
+        }
+
+        metadata_object_name = (
+            f"{base_prefix}/"
+            f"metadata_{file_date}.json"
+        )
+
+        metadata_bytes = json.dumps(
+            metadata,
+            ensure_ascii=False,
+            indent=2,
+        ).encode("utf-8")
+
+        self.minio_client.put_object(
+            bucket_name=MINIO_BUCKET,
+            object_name=metadata_object_name,
+            data=io.BytesIO(metadata_bytes),
+            length=len(metadata_bytes),
+            content_type="application/json",
+        )
+
+        logger.info(
+            "Saved Google Trends data to %s",
+            path,
+        )
+
+        logger.info(
+            (
+                "Saved Google Trends metadata "
+                "to s3://%s/%s"
+            ),
+            MINIO_BUCKET,
+            metadata_object_name,
+        )
+
+        return {
+            "path": path,
+            "metadata_path": (
+                f"s3://{MINIO_BUCKET}/"
+                f"{metadata_object_name}"
+            ),
+            "record_count": len(records),
+        }
+
 
 def run():
-    job = GoogleTrendsIngestionJob("/opt/airflow/config/sources/google_trends.yaml")
+    job = GoogleTrendsIngestionJob(
+        "/opt/airflow/config/sources/google_trends.yaml"
+    )
+
     return job.run()
 
 

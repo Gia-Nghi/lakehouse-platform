@@ -1,37 +1,50 @@
-from src.ingestion.base import BaseIngestionJob
-from src.ingestion.geo_context.osm.client import OSMClient
-from src.ingestion.geo_context.osm.parser import parse_osm_gdf
+import time
+
+from src.ingestion.geo_context.osm.config import OVERPASS_SLEEP_BETWEEN_ENTITY_SECONDS
+from src.ingestion.geo_context.osm.registry import OSM_ENTITY_REGISTRY
+from src.ingestion.geo_context.osm.runners._base import (
+    collect_by_grid,
+    upload_layer_jsonl,
+    upload_metadata,
+)
 
 
-class OSMIngestionJob(BaseIngestionJob):
-    source_name = "osm"
+def run() -> dict:
+    summary = {}
 
-    def fetch(self):
-        client = OSMClient()
+    for entity_name, spec in OSM_ENTITY_REGISTRY.items():
+        print(f"[OSM] Start collecting entity={entity_name}")
 
-        all_frames = []
+        raw_elements = collect_by_grid(
+            entity_name=entity_name,
+            query_builder=spec["query_builder"],
+        )
 
-        for place in self.config["places"]:
-            gdf = client.fetch_features(
-                place=place,
-                tags=self.config["tags"],
-            )
-            all_frames.append(gdf)
+        parsed_payload = spec["parser"](raw_elements)
 
-        return all_frames
+        object_name = upload_layer_jsonl(
+            entity_type=spec["entity_type"],
+            parsed_payload=parsed_payload,
+            batch_id=0,
+        )
 
-    def parse(self, raw_data):
-        records = []
+        summary[entity_name] = {
+            "raw_count": len(raw_elements),
+            "parsed_count": len(parsed_payload),
+            "object_name": object_name,
+        }
 
-        for gdf in raw_data:
-            records.extend(parse_osm_gdf(gdf))
+        print(f"[OSM] Finished entity={entity_name}, parsed={len(parsed_payload)}")
 
-        return records
+        time.sleep(OVERPASS_SLEEP_BETWEEN_ENTITY_SECONDS)
 
+    metadata_object = upload_metadata(summary)
 
-def run():
-    job = OSMIngestionJob("/opt/airflow/config/sources/osm.yaml")
-    return job.run()
+    return {
+        "status": "success",
+        "summary": summary,
+        "metadata_object": metadata_object,
+    }
 
 
 if __name__ == "__main__":
