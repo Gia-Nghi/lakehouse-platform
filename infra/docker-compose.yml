@@ -245,6 +245,10 @@ services:
     environment:
       - PYTHONPATH=/opt/airflow
       - CHOTOT_CONFIG_PATH=/opt/airflow/config/sources/chotot.yaml
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=chotot_raw
+      - BATCH_SIZE=20
+      - LOOP_SLEEP_SECONDS=150
       - LOG_LEVEL=INFO
     volumes:
       - ../src:/opt/airflow/src
@@ -265,12 +269,17 @@ services:
     environment:
       - PYTHONPATH=/opt/airflow
       - CHOTOT_CONFIG_PATH=/opt/airflow/config/sources/chotot.yaml
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC=chotot_raw
       - KAFKA_GROUP_ID_CHOTOT_BRONZE=chotot_raw_to_bronze
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=lakehouse
+      - BRONZE_PREFIX_CHOTOT=bronze/market_listings/chotot
       - MINIO_SECURE=false
       - MAX_RECORDS_PER_FILE=10000
+      - FLUSH_INTERVAL_SECONDS=60
       - LOG_LEVEL=INFO
     volumes:
       - ../src:/opt/airflow/src

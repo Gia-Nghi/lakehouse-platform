@@ -4,6 +4,7 @@ import logging
 import os
 
 import pendulum
+from datetime import timedelta
 
 from src.common.minio import (
     create_minio_client,
@@ -35,51 +36,68 @@ class GoogleTrendsIngestionJob(BaseIngestionJob):
         super().__init__(config_path)
         self.minio_client = create_minio_client()
 
-    def get_load_type_and_timeframe(self):
+    def get_load_plan(self):
         has_data = has_objects(
             client=self.minio_client,
             bucket=MINIO_BUCKET,
             prefix=BRONZE_PREFIX,
         )
 
+        today = pendulum.now(TZ).date()
+
         if has_data:
-            return "daily", self.config.get(
-                "daily_timeframe",
-                "today 1-m",
+            daily_lookback_days = int(
+                self.config.get("daily_lookback_days", 7)
             )
 
-        return "initial", self.config.get(
-            "initial_timeframe",
-            "today 12-m",
+            start_date = today - timedelta(days=daily_lookback_days)
+            end_date = today
+
+            return {
+                "load_type": "daily",
+                "start_date": start_date,
+                "end_date": end_date,
+                "window_days": int(
+                    self.config.get("daily_window_days", 30)
+                ),
+            }
+
+        initial_months_back = int(
+            self.config.get("initial_months_back", 12)
         )
 
+        start_date = today - timedelta(days=initial_months_back * 30)
+        end_date = today
+
+        return {
+            "load_type": "initial",
+            "start_date": start_date,
+            "end_date": end_date,
+            "window_days": int(
+                self.config.get("initial_window_days", 30)
+            ),
+        }
     def fetch(self):
-        load_type, timeframe = (
-            self.get_load_type_and_timeframe()
-        )
+        load_plan = self.get_load_plan()
 
         logger.info(
-            "Google Trends load_type=%s timeframe=%s",
-            load_type,
-            timeframe,
+            "Google Trends load_type=%s start_date=%s end_date=%s window_days=%s",
+            load_plan["load_type"],
+            load_plan["start_date"],
+            load_plan["end_date"],
+            load_plan["window_days"],
         )
 
         collector = GoogleTrendsCollector(
             geo=self.config.get("geo", "VN"),
-            timeframe=timeframe,
             target_region=self.config.get(
                 "target_region",
                 "Vietnam",
             ),
-            months_back=self.config.get(
-                "months_back",
-                12,
-            ),
-            window_days=self.config.get(
-                "window_days",
-                30,
-            ),
-            load_type=load_type,
+            start_date=load_plan["start_date"],
+            end_date=load_plan["end_date"],
+            window_days=load_plan["window_days"],
+            load_type=load_plan["load_type"],
         )
 
         all_records = []
@@ -95,9 +113,7 @@ class GoogleTrendsIngestionJob(BaseIngestionJob):
             )
             return all_records
 
-        for keyword_group, keywords in (
-            keyword_groups.items()
-        ):
+        for keyword_group, keywords in keyword_groups.items():
             logger.info(
                 "Collecting keyword_group=%s keywords=%s",
                 keyword_group,
@@ -156,6 +172,8 @@ class GoogleTrendsIngestionJob(BaseIngestionJob):
         # =========================
         # METADATA FILE
         # =========================
+        dates = [record["date"] for record in records if record.get("date")]
+
         metadata = {
             "source": "google_trends",
             "domain": "user_interest",
@@ -170,18 +188,12 @@ class GoogleTrendsIngestionJob(BaseIngestionJob):
                 "target_region"
             ),
             "geo": self.config.get("geo"),
-            "initial_timeframe": self.config.get(
-                "initial_timeframe"
-            ),
-            "daily_timeframe": self.config.get(
-                "daily_timeframe"
-            ),
-            "months_back": self.config.get(
-                "months_back"
-            ),
-            "window_days": self.config.get(
-                "window_days"
-            ),
+            "min_record_date": min(dates) if dates else None,
+            "max_record_date": max(dates) if dates else None,
+            "initial_months_back": self.config.get("initial_months_back"),
+            "initial_window_days": self.config.get("initial_window_days"),
+            "daily_lookback_days": self.config.get("daily_lookback_days"),
+            "daily_window_days": self.config.get("daily_window_days"),
             "keyword_groups": self.config.get(
                 "keyword_groups"
             ),

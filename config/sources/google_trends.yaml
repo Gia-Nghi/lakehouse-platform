@@ -3,8 +3,11 @@ source: google_trends
 geo: VN
 target_region: "Vietnam"
 
-months_back: 12
-window_days: 30
+initial_months_back: 12
+initial_window_days: 30
+
+daily_lookback_days: 7
+daily_window_days: 30
 
 keyword_groups:
   hcm_real_estate:

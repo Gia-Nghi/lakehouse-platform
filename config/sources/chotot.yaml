@@ -1,20 +1,26 @@
 # File cấu hình cho source chotot
-# Tách riêng phần cấu hình API, request, Kafka, storage và runtime để dễ quản lý và bảo trì
+# Source này thuộc nhóm dữ liệu tin đăng bất động sản
 
-# Metadata về source
 source: chotot
 category: market_listings
 
+# =========================
+# API CHỢ TỐT
+# =========================
 api:
   list_url: "https://gateway.chotot.com/v1/public/ad-listing"
   detail_url: "https://gateway.chotot.com/v1/public/ad-listing/{list_id}"
+
   params:
-    cg: 1000            # category id cho bất động sản
-    region_v2: 13000    # region id cho Hồ Chí Minh
-    st: "s,k"           # st: s (bán), k (cho thuê)
+    cg: 1000
+    region_v2: 13000
+    st: "s,k"
     source: "listing"
     limit: 50
 
+# =========================
+# REQUEST / RETRY
+# =========================
 request:
   timeout: 10
   retries: 3
@@ -22,17 +28,57 @@ request:
   backoff_factor: 2
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
 
+# =========================
+# KAFKA
+# =========================
 kafka:
   bootstrap_servers: "kafka:29092"
   topic: "chotot_raw"
+  group_id_bronze: "chotot_raw_to_bronze"
 
+# =========================
+# MINIO / BRONZE STORAGE
+# =========================
 storage:
-  bronze_bucket: "lakehouse"
-  bronze_prefix: "bronze/market_listings/chotot/"
+  endpoint: "minio:9000"
+  access_key_env: "MINIO_ROOT_USER"
+  secret_key_env: "MINIO_ROOT_PASSWORD"
+  secure: false
 
+  # Bucket chính của lakehouse
+  bronze_bucket: "lakehouse"
+
+  # Không để dấu / ở cuối để tránh object path bị //
+  bronze_prefix: "bronze/market_listings/chotot"
+
+# =========================
+# RUNTIME CRAWLER
+# =========================
 runtime:
   mode: "streaming"
-  poll_interval_seconds: 300
+
+  # Mỗi vòng crawl lấy bao nhiêu tin
   max_records_per_poll: 50
+
+  # Nghỉ giữa các vòng crawl
+  poll_interval_seconds: 300
+
+  # Nghỉ giữa các request detail để tránh bị chặn
+  detail_sleep_min: 0.2
+  detail_sleep_max: 0.6
+
+  # Dùng list_id để chống trùng
   deduplicate_key: "list_id"
+
+  # null nghĩa là chạy liên tục
   stop_after_polls: null
+
+# =========================
+# BRONZE WRITER
+# =========================
+bronze:
+  max_records_per_file: 10000
+
+  # Partition theo ngày crawl
+  partition_column: "crawled_at"
+  timezone: "Asia/Ho_Chi_Minh"

@@ -1,6 +1,6 @@
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Tuple
 
 import pandas as pd
@@ -13,16 +13,16 @@ class GoogleTrendsCollector:
     def __init__(
         self,
         geo: str = "VN",
-        timeframe: str | None = None,
         target_region: str = "Vietnam",
-        months_back: int = 12,
+        start_date: date | None = None,
+        end_date: date | None = None,
         window_days: int = 30,
         load_type: str = "initial",
     ):
         self.geo = geo
-        self.timeframe = timeframe
         self.target_region = target_region
-        self.months_back = months_back
+        self.start_date = start_date
+        self.end_date = end_date or datetime.today().date()
         self.window_days = window_days
         self.load_type = load_type
 
@@ -33,18 +33,16 @@ class GoogleTrendsCollector:
         )
 
     def generate_date_windows(self) -> List[Tuple[str, str]]:
-        end_date = datetime.today().date()
-        start_date = end_date - timedelta(
-            days=self.months_back * 30
-        )
+        if self.start_date is None:
+            raise ValueError("start_date must be provided")
 
         windows = []
-        current = start_date
+        current = self.start_date
 
-        while current < end_date:
+        while current < self.end_date:
             window_end = min(
                 current + timedelta(days=self.window_days),
-                end_date,
+                self.end_date,
             )
 
             windows.append(
@@ -71,7 +69,6 @@ class GoogleTrendsCollector:
     ) -> List[dict]:
 
         all_frames = []
-
         windows = self.generate_date_windows()
 
         for start_date, end_date in windows:
