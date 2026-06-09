@@ -114,6 +114,8 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__LOGGING__BASE_LOG_FOLDER=${AIRFLOW__LOGGING__BASE_LOG_FOLDER}
       - PYTHONPATH=/opt/airflow
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
     volumes:
       - ../dags:/opt/airflow/dags
       - ../src:/opt/airflow/src
@@ -157,6 +159,8 @@ services:
       - SPARK_MODE=master
       - AWS_REGION=us-east-1
       - AWS_DEFAULT_REGION=us-east-1
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
     volumes:
       # Mount file cấu hình vào container
       - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
@@ -181,6 +185,8 @@ services:
       - SPARK_MASTER=spark://spark-master:7077
       - AWS_REGION=us-east-1
       - AWS_DEFAULT_REGION=us-east-1
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
     volumes:
       # Mount file cấu hình tương tự Master
       - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
@@ -230,6 +236,7 @@ services:
     ports:
       - "9037:9047"
       - "31310:31010"
+      - "32010:32010"
     volumes:
       - dremio_data:/opt/dremio/data
     networks:

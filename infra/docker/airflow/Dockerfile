@@ -1,4 +1,4 @@
-FROM apache/airflow:2.10.4
+FROM apache/airflow:2.10.4-python3.8
 
 USER root
 
@@ -15,6 +15,9 @@ ENV HADOOP_VERSION=3
 ENV SPARK_HOME=/opt/spark
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="${SPARK_HOME}/bin:${JAVA_HOME}/bin:${PATH}"
+
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
 
 RUN curl -L https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz \
     | tar -xz -C /opt/ \
