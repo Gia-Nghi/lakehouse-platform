@@ -1,58 +1,32 @@
 from __future__ import annotations
 
 from datetime import datetime
+# Import thêm timezone để đảm bảo Airflow chạy đúng giờ Việt Nam (UTC+7)
 from pendulum import timezone
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
-SPARK_SCRIPT = "/opt/airflow/src/ETL/etl_silver_to_gold_facts_and_dims.py"
+SPARK_SCRIPT = "/opt/airflow/src/ETL/etl_bronze_to_silver.py"
 
-default_args = {
-    "owner": "tisucam",
-    "depends_on_past": False,
-    "retries": 0,
-}
-
+# Thiết lập múi giờ Hồ Chí Minh để tránh lệch múi giờ UTC mặc định của Airflow
 local_tz = timezone("Asia/Ho_Chi_Minh")
 
 with DAG(
-    dag_id="silver_to_gold_facts_and_dims_dag",
-    description="Build Gold facts and dimensions from Silver Iceberg tables",
-    default_args=default_args,
+    dag_id="chotot_bronze_to_silver_daily",
+    description="Run Chotot Bronze to Silver Spark job daily at 7 PM",
     start_date=datetime(2026, 5, 1, tzinfo=local_tz),
-    schedule="0 21 * * *",  # Chạy hàng ngày lúc 21:00 theo giờ Việt Nam
+    schedule="0 19 * * *",  # Cron expression: 19:00 mỗi ngày
     catchup=False,
-    tags=["lakehouse", "silver", "gold", "spark", "iceberg", "dremio", "daily"],
+    tags=["lakehouse", "chotot", "bronze", "silver", "spark", "daily"],
 ) as dag:
 
-    run_silver_to_gold = BashOperator(
-        task_id="run_silver_to_gold_facts_and_dims",
+    run_chotot_bronze_to_silver_daily = BashOperator(
+        task_id="run_chotot_bronze_to_silver_daily",
         bash_command=f"""
-        set -e
-
         export PYSPARK_PYTHON=python3
         export PYSPARK_DRIVER_PYTHON=python3
 
-        echo "=== CHECK SPARK SCRIPT ==="
-        ls -l {SPARK_SCRIPT}
-
-        echo "=== CHECK PYTHON ENV ==="
-        python --version
-        which python
-        echo "PYSPARK_PYTHON=$PYSPARK_PYTHON"
-        echo "PYSPARK_DRIVER_PYTHON=$PYSPARK_DRIVER_PYTHON"
-
-        echo "=== CHECK ENV ==="
-        echo "SILVER_TABLE=$SILVER_TABLE"
-        echo "METRO_SILVER_TABLE=$METRO_SILVER_TABLE"
-        echo "GGTREND_SILVER_TABLE=$GGTREND_SILVER_TABLE"
-        echo "GOLD_NAMESPACE=$GOLD_NAMESPACE"
-        echo "NESSIE_URI=$NESSIE_URI"
-        echo "S3_ENDPOINT=$S3_ENDPOINT"
-        echo "ICEBERG_WAREHOUSE=$ICEBERG_WAREHOUSE"
-
-        echo "=== RUN SILVER TO GOLD SPARK JOB ==="
         spark-submit \
           --master spark://spark-master:7077 \
           --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0,org.projectnessie.nessie-integrations:nessie-spark-extensions-3.5_2.12:0.95.0,org.apache.hadoop:hadoop-aws:3.3.4 \
@@ -77,4 +51,3 @@ with DAG(
           {SPARK_SCRIPT}
         """,
     )
-    
