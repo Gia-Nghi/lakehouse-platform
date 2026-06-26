@@ -3,11 +3,23 @@ source: google_trends
 geo: VN
 target_region: "Vietnam"
 
-initial_months_back: 12
+bronze_prefix: bronze/user_interest/google_trends
+
+initial_start_date: "2025-11-01"
 initial_window_days: 30
+
 
 daily_lookback_days: 7
 daily_window_days: 30
+
+sleep_min_seconds: 120
+sleep_max_seconds: 240
+
+pytrends_hl: vi-VN
+pytrends_tz: 420
+pytrends_timeout_connect: 10
+pytrends_timeout_read: 25
+
 
 keyword_groups:
   hcm_real_estate:

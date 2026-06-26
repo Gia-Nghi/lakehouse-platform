@@ -1,7 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+
+
+TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
 
 default_args = {
@@ -18,8 +22,8 @@ with DAG(
     dag_id="google_trends_ingestion",
     description="Daily Google Trends ingestion to MinIO Bronze layer",
     default_args=default_args,
-    start_date=datetime(2026, 1, 1),
-    schedule="@daily",
+    start_date=pendulum.datetime(2026, 1, 1, tz=TZ),
+    schedule="0 4 * * *",
     catchup=False,
     max_active_runs=1,
     tags=[
@@ -34,8 +38,7 @@ with DAG(
         task_id="ingest_google_trends",
         bash_command="""
         cd /opt/airflow && \
-        python -m src.ingestion.user_interest.google_trends.run
+        python -m src.ingestion.google_trends
         """,
+        
     )
-
-    ingest_google_trends

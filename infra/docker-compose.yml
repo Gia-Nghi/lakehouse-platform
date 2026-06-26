@@ -27,7 +27,7 @@ services:
 
   # --- STORAGE ---
   minio:
-    image: minio/minio
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: lakehouse-minio
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
@@ -122,6 +122,7 @@ services:
       - ../config:/opt/airflow/config
       - ../logs/airflow:/opt/airflow/logs
       - ../data:/opt/airflow/data
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     ports:
       - "8033:8080"
     networks:
@@ -144,6 +145,7 @@ services:
       - ../config:/opt/airflow/config
       - ../logs/airflow:/opt/airflow/logs
       - ../data:/opt/airflow/data
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     networks:
       - data-lakehouse-net
     command: scheduler
@@ -228,7 +230,7 @@ services:
       - "8032:8080"
 
   dremio:
-    image: dremio/dremio-oss
+    image: dremio/dremio-oss:25.1.0
     container_name: lakehouse-dremio
     depends_on:
       minio:
@@ -248,7 +250,7 @@ services:
       dockerfile: infra/docker/airflow/Dockerfile
     container_name: lakehouse-chotot-crawler
     working_dir: /opt/airflow
-    command: python -m src.ingestion.market_listings.chotot.run
+    command: python -m src.ingestion.chotot
     environment:
       - PYTHONPATH=/opt/airflow
       - CHOTOT_CONFIG_PATH=/opt/airflow/config/sources/chotot.yaml
@@ -272,7 +274,7 @@ services:
       dockerfile: infra/docker/airflow/Dockerfile
     container_name: lakehouse-chotot-raw-to-bronze
     working_dir: /opt/airflow
-    command: python -m src.ingestion.market_listings.consumers.chotot_raw_to_bronze
+    command: python -m src.ingestion.chotot_raw_to_bronze
     environment:
       - PYTHONPATH=/opt/airflow
       - CHOTOT_CONFIG_PATH=/opt/airflow/config/sources/chotot.yaml

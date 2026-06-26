@@ -1,27 +1,48 @@
-FROM apache/spark:3.5.1
+FROM apache/spark:3.5.2-scala2.12-java17-python3-ubuntu
 
 USER root
 
-ENV PYSPARK_PYTHON=python3
-ENV PYSPARK_DRIVER_PYTHON=python3
+ENV SPARK_HOME=/opt/spark
+ENV PATH="${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${PATH}"
 
-RUN pip install --no-cache-dir jupyterlab pyiceberg pynessie psycopg2-binary boto3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    unzip \
+    software-properties-common \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV ICEBERG_VERSION=1.5.0
-ENV NESSIE_VERSION=0.95.0
-ENV HADOOP_AWS_VERSION=3.3.4
-ENV AWS_SDK_V2_VERSION=2.20.160
-ENV AWS_SDK_V1_VERSION=1.12.262
-ENV SPARK_JARS_DIR=/opt/spark/jars
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
 
-RUN apt-get update && apt-get install -y curl && \
-    curl -o $SPARK_JARS_DIR/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar && \
-    curl -o $SPARK_JARS_DIR/nessie-spark-extensions-3.5_2.12-${NESSIE_VERSION}.jar https://repo1.maven.org/maven2/org/projectnessie/nessie-integrations/nessie-spark-extensions-3.5_2.12/${NESSIE_VERSION}/nessie-spark-extensions-3.5_2.12-${NESSIE_VERSION}.jar && \
-    curl -o $SPARK_JARS_DIR/hadoop-aws-${HADOOP_AWS_VERSION}.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar && \
-    curl -o $SPARK_JARS_DIR/aws-java-sdk-bundle-${AWS_SDK_V1_VERSION}.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_V1_VERSION}/aws-java-sdk-bundle-${AWS_SDK_V1_VERSION}.jar && \
-    curl -o $SPARK_JARS_DIR/bundle-${AWS_SDK_V2_VERSION}.jar https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/${AWS_SDK_V2_VERSION}/bundle-${AWS_SDK_V2_VERSION}.jar && \
-    curl -o $SPARK_JARS_DIR/url-connection-client-${AWS_SDK_V2_VERSION}.jar https://repo1.maven.org/maven2/software/amazon/awssdk/url-connection-client/${AWS_SDK_V2_VERSION}/url-connection-client-${AWS_SDK_V2_VERSION}.jar && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV PYSPARK_PYTHON=python3.11
+ENV PYSPARK_DRIVER_PYTHON=python3.11
+
+RUN python3.11 -m pip install --no-cache-dir \
+    boto3 \
+    pandas \
+    pyarrow \
+    kafka-python \
+    requests \
+    pyiceberg \
+    pynessie \
+    psycopg2-binary \
+    jupyterlab
+
+RUN curl -fL --retry 3 -o /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-1.5.2.jar \
+        https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.5.2/iceberg-spark-runtime-3.5_2.12-1.5.2.jar \
+    && curl -fL --retry 3 -o /opt/spark/jars/nessie-spark-extensions-3.5_2.12-0.108.0.jar \
+        https://repo1.maven.org/maven2/org/projectnessie/nessie-integrations/nessie-spark-extensions-3.5_2.12/0.108.0/nessie-spark-extensions-3.5_2.12-0.108.0.jar \
+    && curl -fL --retry 3 -o /opt/spark/jars/hadoop-aws-3.3.4.jar \
+        https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+    && curl -fL --retry 3 -o /opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar \
+        https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar \
+    && chmod 644 /opt/spark/jars/*.jar \
+    && chown -R spark:spark /opt/spark/jars
+
+RUN chmod 644 /opt/spark/jars/*.jar && chown -R spark:spark /opt/spark/jars
 
 WORKDIR /opt/spark
 

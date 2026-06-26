@@ -1,54 +1,86 @@
-# --- System Files ---
-.DS_Store
-Thumbs.db
-*.swp
-.idea/
-.vscode/
-
-# --- Python & Virtual Env ---
+# ==========================
+# Python
+# ==========================
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+
+# Virtual environments
 .venv/
 venv/
-ENV/
+env/
+
+# ==========================
+# IDE
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================
+# Environment
+# ==========================
 .env
-.pytest_cache/
-.mypy_cache/
+.env.*
+!.env.example
 
-# --- Data & Notebooks (Cực kỳ quan trọng cho Lakehouse) ---
-data/
-*.csv
-*.parquet
-*.json
-*.avro
-*.orc
-.ipynb_checkpoints/
-notebooks/.ipynb_checkpoints/
-
-# --- Infrastructure & Docker ---
-# Chặn các dữ liệu phát sinh khi chạy container
-infra/postgres_data/
-infra/minio_data/
-infra/dremio_data/
-*.log
-
-# --- Airflow Specific ---
+# ==========================
+# Airflow
+# ==========================
 logs/
-airflow.cfg
 airflow.db
-webserver_config.py
-unittests.cfg
+airflow-webserver.pid
 
-# --- ML & Models (Pytorch) ---
-*.pt
-*.pth
-*.onnx
-ml_models/
-.comet_ml/
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
 
-# --- Spark & Temporary files ---
-.spark-staged/
-metastore_db/
-derby.log
-event_logs/
+# ==========================
+# ML
+# ==========================
+src/ml/catboost_info/
+catboost_info/
+
+# ==========================
+# Test / Coverage
+# ==========================
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ==========================
+# OS
+# ==========================
+.DS_Store
+Thumbs.db
+
+# ==========================
+# Build
+# ==========================
+dist/
+build/
+*.egg-info/
+
+# ==========================
+# Runtime
+# ==========================
+*.log
+*.tmp
+*.bak
+
+# ==========================
+# Miscellaneous
+# ==========================
+src/ml/catboost_info/
+catboost_info/
+
+# ==========================
+# Java
+# ==========================
+infra/docker/spark/jars/
+*.jar
+EOF

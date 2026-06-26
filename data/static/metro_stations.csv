@@ -1,0 +1,15 @@
+﻿station_id,station_code,station_name,slug,station_type,station_status,lat,lng,area_name,ward_name,address,amenity_atm,amenity_elevator,amenity_info_desk,amenity_parking,amenity_shops,amenity_ticket_machine,amenity_toilet,amenity_vending,amenity_wc,amenity_wifi
+1,L1-01,Bến Thành,ga-ben-thanh,Underground,Operating,10.77084305,106.6975075,Quận 1,Phường Bến Thành,"Công trường Quách Thị Trang, Quận 1",TRUE,TRUE,,FALSE,FALSE,,TRUE,,,TRUE
+2,L1-02,Nhà hát Thành phố,ga-nha-hat-thanh-pho,Underground,Operating,10.77672945,106.7032206,Quận 1,Phường Bến Nghé,"Lê Lợi, Bến Nghé, Quận 1",TRUE,TRUE,,FALSE,FALSE,,TRUE,,,TRUE
+3,L1-03,Ba Son,ga-ba-son,Underground,Operating,10.78152478,106.707952,Quận 1,Phường Bến Nghé,"Tôn Đức Thắng, Bến Nghé, Quận 1",TRUE,TRUE,FALSE,FALSE,,FALSE,,FALSE,FALSE,TRUE
+4,L1-04,Văn Thánh,ga-van-thanh,Elevated,Operating,10.79606417,106.7154944,Quận Bình Thạnh,Phường 22,"Nguyễn Hữu Cảnh, Bình Thạnh",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+5,L1-05,Tân Cảng,ga-tan-cang,Elevated,Operating,10.79862465,106.7232406,Quận Bình Thạnh,Phường 15,"Điện Biên Phủ, Bình Thạnh",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+6,L1-06,Thảo Điền,ga-thao-dien,Elevated,Operating,10.80046893,106.7336315,Thành phố Thủ Đức,Phường Thảo Điền,"Xa lộ Hà Nội, Thảo Điền, TP. Thủ Đức",TRUE,TRUE,,TRUE,FALSE,,TRUE,,,TRUE
+7,L1-07,An Phú,ga-an-phu,Elevated,Operating,10.80216577,106.7422253,Thành phố Thủ Đức,Phường An Phú,"Xa lộ Hà Nội, An Phú, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+8,L1-08,Rạch Chiếc,ga-rach-chiec,Elevated,Operating,10.80854678,106.7552286,Thành phố Thủ Đức,Phường An Phú,"Xa lộ Hà Nội, An Phú, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+9,L1-09,Phước Long,ga-phuoc-long,Elevated,Operating,10.82157213,106.7582274,Thành phố Thủ Đức,Phường Trường Thọ,"Xa lộ Hà Nội, Trường Thọ, TP. Thủ Đức",FALSE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+10,L1-10,Bình Thái,ga-binh-thai,Elevated,Operating,10.83293207,106.7640424,Thành phố Thủ Đức,Phường Trường Thọ,"Xa lộ Hà Nội, Trường Thọ, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+11,L1-11,Thủ Đức,ga-thu-duc,Elevated,Operating,10.8465937,106.7717564,Thành phố Thủ Đức,Phường Bình Thọ,"Xa lộ Hà Nội, Bình Thọ, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+12,L1-12,Khu Công nghệ cao,ga-khu-cong-nghe-cao,Elevated,Operating,10.8591168,106.7890781,Thành phố Thủ Đức,Phường Linh Trung,"Xa lộ Hà Nội, Linh Trung, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+13,L1-13,Đại học Quốc gia,ga-dai-hoc-quoc-gia,Elevated,Operating,10.86642401,106.8014109,Thành phố Thủ Đức,Phường Linh Trung,"Xa lộ Hà Nội, Linh Trung, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
+14,L1-14,Bến xe Suối Tiên,ga-suoi-tien,Elevated,Operating,10.87978919,106.814248,Thành phố Thủ Đức,Phường Long Bình,"Xa lộ Hà Nội, Long Bình, TP. Thủ Đức",TRUE,TRUE,FALSE,TRUE,,FALSE,,FALSE,FALSE,TRUE
