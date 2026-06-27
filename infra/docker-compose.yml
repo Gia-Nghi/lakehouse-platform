@@ -116,6 +116,8 @@ services:
       - PYTHONPATH=/opt/airflow
       - PYSPARK_PYTHON=python3
       - PYSPARK_DRIVER_PYTHON=python3
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       - ../dags:/opt/airflow/dags
       - ../src:/opt/airflow/src

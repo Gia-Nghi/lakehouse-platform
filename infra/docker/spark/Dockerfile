@@ -42,8 +42,6 @@ RUN curl -fL --retry 3 -o /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-1.5.2.j
     && chmod 644 /opt/spark/jars/*.jar \
     && chown -R spark:spark /opt/spark/jars
 
-RUN chmod 644 /opt/spark/jars/*.jar && chown -R spark:spark /opt/spark/jars
-
 WORKDIR /opt/spark
 
 USER spark
