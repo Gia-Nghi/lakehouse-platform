@@ -116,8 +116,6 @@ services:
       - PYTHONPATH=/opt/airflow
       - PYSPARK_PYTHON=python3
       - PYSPARK_DRIVER_PYTHON=python3
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       - ../dags:/opt/airflow/dags
       - ../src:/opt/airflow/src
@@ -165,8 +163,6 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - PYSPARK_PYTHON=python3
       - PYSPARK_DRIVER_PYTHON=python3
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       # Mount file cấu hình vào container
       - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
@@ -193,8 +189,6 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - PYSPARK_PYTHON=python3
       - PYSPARK_DRIVER_PYTHON=python3
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     volumes:
       # Mount file cấu hình tương tự Master
       - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
